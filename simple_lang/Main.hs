@@ -1,8 +1,8 @@
 module Main where
 
 import System.Environment
-import qualified MyLib (readExpr)
+import qualified ParserLib (readExpr)
 
 main :: IO ()
 main = do args <- getArgs
-          putStrLn (MyLib.readExpr (args !! 0))
+          putStrLn (ParserLib.readExpr (args !! 0))

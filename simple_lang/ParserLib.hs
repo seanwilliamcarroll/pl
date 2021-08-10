@@ -1,7 +1,9 @@
-module MyLib (readExpr) where
+module ParserLib (readExpr) where
 
 import Numeric
 import Data.Bits
+import Data.Ratio
+import Data.Complex
 import Control.Monad
 import Text.ParserCombinators.Parsec hiding (spaces)
 
@@ -24,7 +26,19 @@ data LispVal = Atom String
              | Bool Bool
              | Character Char
              | Float Double
+             | Ratio Rational
+             | Complex (Complex Double)
              deriving (Show)
+
+parseExpr :: Parser LispVal
+parseExpr = parseAtom
+  <|> parseString
+  <|> try parseRatio
+  <|> try parseComplex
+  <|> try parseFloat
+  <|> try parseNumber
+  <|> try parseCharacter
+  <|> try parseBool
 
 parseString :: Parser LispVal
 parseString = do char '"'
@@ -53,14 +67,18 @@ parseBool = do try $ char '#'
                  <|> (char 'f' >> return (Bool False)))
 
 parseNumber :: Parser LispVal
-parseNumber = try parseBareNumber
+parseNumber = try parseDecNoPrefix
               <|> try parseOct
               <|> try parseHex
               <|> try parseBin
               <|> try parseDec
 
-parseBareNumber :: Parser LispVal
-parseBareNumber = liftM (Number . read) $ many1 digit
+parseDecNoPrefix :: Parser LispVal
+parseDecNoPrefix = liftM (Number . read) $ many1 digit
+
+parseDec :: Parser LispVal
+parseDec = do string "#d"
+              parseDecNoPrefix
 
 parseOct :: Parser LispVal
 parseOct = do string "#o"
@@ -74,7 +92,6 @@ parseBin = do string "#b"
               digitStream <- many1 (oneOf "01")
               let val = bin2dig digitStream
               return $ Number val
-
 bin2dig :: String -> Integer
 bin2dig = foldl (\acc x -> (shiftL acc 1) + (binChar2dig x)) 0
 binChar2dig :: Char -> Integer
@@ -86,10 +103,6 @@ parseHex = do string "#x"
               let val = hex2dig digitStream
               return $ Number val
 hex2dig x = fst $ readHex x !! 0
-
-parseDec :: Parser LispVal
-parseDec = do string "#d"
-              parseBareNumber
 
 parseCharacter :: Parser LispVal
 parseCharacter = do string "#\\"
@@ -109,10 +122,18 @@ parseFloat = do x <- many1 digit
                 let [(val, _)] = readFloat $ x ++ "." ++ y
                 return $ Float val
 
-parseExpr :: Parser LispVal
-parseExpr = parseAtom
-  <|> parseString
-  <|> try parseFloat
-  <|> try parseNumber
-  <|> try parseCharacter
-  <|> try parseBool
+parseRatio :: Parser LispVal
+parseRatio = do x <- many1 digit
+                char '/'
+                y <- many1 digit
+                return $ Ratio ((read x) % (read y))
+
+parseComplex :: Parser LispVal
+parseComplex = do x <- (try parseFloat <|> parseDecNoPrefix)
+                  char '+'
+                  y <- (try parseFloat <|> parseDecNoPrefix)
+                  char 'i'
+                  let toDouble :: LispVal -> Double
+                      toDouble (Number n) = fromIntegral n
+                      toDouble (Float f) = realToFrac f
+                  return $ Complex (toDouble x :+ toDouble y)

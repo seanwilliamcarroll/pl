@@ -15,10 +15,10 @@ maintainer:          seanwilliamcarroll@gmail.com
 -- copyright:
 -- category:
 build-type:          Simple
-extra-source-files:  CHANGELOG.md
+extra-source-files:  CHANGELOG.md, README.md
 
 library
-  exposed-modules:     MyLib
+  exposed-modules:     ParserLib
   -- other-modules:
   -- other-extensions:
   build-depends:
@@ -29,7 +29,7 @@ library
 
 executable simple-lang
   main-is:             Main.hs
-  other-modules:       MyLib
+  other-modules:       ParserLib
   -- other-extensions:
   build-depends:
       base >=4.13 && <4.14,
@@ -42,5 +42,5 @@ test-suite simple-lang-test
   default-language:    Haskell2010
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  main-is:             MyLibTest.hs
+  main-is:             ParserLibTest.hs
   build-depends:       base >=4.13 && <4.14
