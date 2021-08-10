@@ -282,7 +282,7 @@ primitives = [("+", numericBinOp (+)),
 numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
 numericBinOp op params = case params of
                            singleVal@[_] -> throwError $ NumArgs 2 singleVal
-                           ps -> mapM unpackNum ps >>= return . Number . foldl1 op
+                           ps -> fmap (Number . foldl1 op) (mapM unpackNum ps)
 
 unpackNum :: LispVal -> ThrowsError Integer
 unpackNum x = case x of
