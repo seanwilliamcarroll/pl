@@ -24,7 +24,8 @@ library
   build-depends:
       base >=4.13 && <4.14,
       parsec,
-      array
+      array,
+      mtl
   -- hs-source-dirs:
   default-language:    Haskell2010
 
@@ -36,7 +37,8 @@ executable simple-lang
       base >=4.13 && <4.14,
       simple-lang,
       parsec,
-      array
+      array,
+      mtl
   -- hs-source-dirs:
   default-language:    Haskell2010
 
