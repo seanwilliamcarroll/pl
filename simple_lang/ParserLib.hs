@@ -271,8 +271,28 @@ evalAtom x =
       case exprs of
         [] -> throwError $ BadSpecialForm "No clauses for cond found" form
         _ -> evalCond exprs
+    form@(List ((Atom "case") : key : clauses)) ->
+      case clauses of
+        [] -> throwError $ BadSpecialForm "No clauses for case found" form
+        _ -> do result <- eval key
+                evalCase result clauses
     List (Atom func : args) -> mapM eval args >>= apply func
     form -> throwError $ TypeMismatch "atom list" form
+
+evalCase :: LispVal -> [LispVal] -> ThrowsError LispVal
+evalCase key clauses =
+  case clauses of
+    [] -> throwError $ BadSpecialForm "No valid clauses for case found; Missing else?" $
+          List clauses
+    (List ((List datums):[pred])):clauses' ->
+      let
+        clauseResult = any (\x -> eqPair (key, x)) datums
+      in
+        if clauseResult
+        then eval pred
+        else evalCase key clauses'
+    (List ((Atom "else"):[pred])):clauses' -> eval pred
+    badForm -> throwError $ BadSpecialForm "Invalid clause for case found" $ List badForm
 
 evalCond :: [LispVal] -> ThrowsError LispVal
 evalCond exprs =
@@ -333,6 +353,12 @@ primitives = [("+", numericBinOp (+)),
               ("eq?", eq),
               ("equal?", equal)]
 
+eqPair :: (LispVal, LispVal) -> Bool
+eqPair (a1, b1) =
+  case eqv [a1, b1] of
+    Left err -> False
+    Right (Bool val) -> val
+
 eqv :: [LispVal] -> ThrowsError LispVal
 eqv lvs = case lvs of
             [Bool a, Bool b] -> return $ Bool $ a == b
@@ -344,9 +370,6 @@ eqv lvs = case lvs of
             [List a, List b] -> return $ Bool $ length a == length b &&
                                     let
                                       combList = zip a b
-                                      eqPair (a1, b1) = case eqv [a1, b1] of
-                                                          Left err -> False
-                                                          Right (Bool val) -> val
                                     in
                                       all eqPair combList
             [_, _] -> return $ Bool False
