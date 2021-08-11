@@ -6,7 +6,7 @@ import Data.Bits
 import Data.Ratio
 import Data.Complex
 import Control.Monad
-import Control.Monad.Error
+import Control.Monad.Except
 import Text.ParserCombinators.Parsec hiding (spaces)
 
 symbol :: Parser Char
@@ -65,9 +65,6 @@ data LispError = NumArgs Integer [LispVal]
                | Default String
 
 instance Show LispError where show = showLispError
-instance Error LispError where
-  noMsg = Default "An error has occurred"
-  strMsg = Default
 
 type ThrowsError = Either LispError
 
