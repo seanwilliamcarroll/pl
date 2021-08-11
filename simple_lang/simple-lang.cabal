@@ -22,7 +22,8 @@ library
   other-modules:
       SLTypes,
       SLParser,
-      SLEvaluator
+      SLEvaluator,
+      SLRepl
   -- other-extensions:
   build-depends:
       base >=4.13 && <4.14,
@@ -38,7 +39,8 @@ executable simple-lang
       SLLibrary,
       SLTypes,
       SLParser,
-      SLEvaluator
+      SLEvaluator,
+      SLRepl
   -- other-extensions:
   build-depends:
       base >=4.13 && <4.14,

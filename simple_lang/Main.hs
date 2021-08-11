@@ -1,10 +1,13 @@
 module Main where
 
 import           Control.Monad
-import qualified SLLibrary          (eval, extractValue, readExpr, trapError)
+import qualified SLLibrary          (eval, evalAndPrint, extractValue, readExpr,
+                                     runRepl, trapError)
 import           System.Environment
 
 main :: IO ()
 main = do args <- getArgs
-          let evaled = fmap show $ (SLLibrary.readExpr . head)  args >>= SLLibrary.eval
-          putStrLn $ SLLibrary.extractValue $ SLLibrary.trapError evaled
+          case length args of
+            0 -> SLLibrary.runRepl
+            1 -> (SLLibrary.evalAndPrint . head) args
+            _ -> putStrLn "Program only takes 0 or 1 argument"
