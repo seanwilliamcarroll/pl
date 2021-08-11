@@ -261,16 +261,21 @@ eval x = case x of
                                                             badPred -> throwError $ TypeMismatch
                                                                        "bool" badPred
            form@(List ((Atom "cond"):exprs)) ->
+             let condAtom = Atom "cond" in
              case exprs of
                [] -> throwError $
                      BadSpecialForm "No clauses for cond found" form
                expr:exprs' -> case expr of
                                 List [Atom "else", elseExpr] -> eval elseExpr
-                                List [pred, predExpr] -> eval $ List [Atom "if",
-                                                                      pred,
-                                                                      predExpr,
-                                                                      List ((Atom "cond"):
-                                                                       exprs')]
+                                List [pred, predExpr] -> do result <- eval pred
+                                                            case result of
+                                                              Bool True -> eval predExpr
+                                                              Bool False -> eval
+                                                                            (List (condAtom:exprs'))
+                                                              badPred -> throwError $
+                                                                         TypeMismatch
+                                                                         "bool"
+                                                                         badPred
                                 badClause -> throwError $ BadSpecialForm
                                              "Malformed clause in cond"
                                              badClause
