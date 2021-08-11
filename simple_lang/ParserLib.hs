@@ -1,3 +1,4 @@
+{-# LANGUAGE ExistentialQuantification #-}
 module ParserLib (readExpr, eval, trapError, extractValue) where
 
 import Numeric
@@ -251,7 +252,14 @@ eval x = case x of
            val@(String _) -> return val
            val@(Number _) -> return val
            val@(Bool _) -> return val
+           val@(Character _) -> return val
            List [Atom "quote", val] -> return val
+           List [Atom "if", pred, ifExpr, elseExpr] -> do result <- eval pred
+                                                          case result of
+                                                            Bool False -> eval elseExpr
+                                                            Bool True -> eval ifExpr
+                                                            badPred -> throwError $ TypeMismatch
+                                                                       "bool" badPred
            List (Atom func : args) -> mapM eval args >>= apply func
            badForm -> throwError $ BadSpecialForm "Unrecognized special form" badForm
 
@@ -274,7 +282,90 @@ primitives = [("+", numericBinOp (+)),
               ("boolean?", unaryOp isBoolean),
               ("list?", unaryOp isList),
               ("string->symbol", unaryOp stringToSymbol),
-              ("symbol->string", unaryOp symbolToString)]
+              ("symbol->string", unaryOp symbolToString),
+              ("=", numBoolBinOp (==)),
+              ("<", numBoolBinOp (<)),
+              (">", numBoolBinOp (>)),
+              ("/=", numBoolBinOp (/=)),
+              (">=", numBoolBinOp (>=)),
+              ("<=", numBoolBinOp (<=)),
+              ("&&", boolBoolBinOp (&&)),
+              ("||", boolBoolBinOp (||)),
+              ("string=?", stringBoolBinOp (==)),
+              ("string>?", stringBoolBinOp (>)),
+              ("string<?", stringBoolBinOp (<)),
+              ("string<=?", stringBoolBinOp (<=)),
+              ("string>=?", stringBoolBinOp (>=)),
+              ("car", car),
+              ("cdr", cdr),
+              ("cons", cons),
+              ("eqv?", eqv),
+              ("eq?", eq),
+              ("equal?", equal)]
+
+eqv :: [LispVal] -> ThrowsError LispVal
+eqv lvs = case lvs of
+            [(Bool a), (Bool b)] -> return $ Bool $ a == b
+            [(String a), (String b)] -> return $ Bool $ a == b
+            [(Number a), (Number b)] -> return $ Bool $ a == b
+            [(Character a), (Character b)] -> return $ Bool $ a == b
+            [(Atom a), (Atom b)] -> return $ Bool $ a == b
+            [(DottedList a b), (DottedList x y)] -> eqv [(List $ a ++ [b]), (List $ x ++ [y])]
+            [(List a), (List b)] -> return $ Bool $ (length a) == (length b) &&
+                                    let
+                                      combList = zip a b
+                                      eqPair (a1, b1) = case eqv [a1, b1] of
+                                                          Left err -> False
+                                                          Right (Bool val) -> val
+                                    in
+                                      and $ map eqPair combList
+            [_, _] -> return $ Bool False
+            badArgList -> throwError $ NumArgs 2 badArgList
+
+eq :: [LispVal] -> ThrowsError LispVal
+eq = eqv -- FIXME?
+
+equal :: [LispVal] -> ThrowsError LispVal
+equal = eqv -- FIXME?
+
+car :: [LispVal] -> ThrowsError LispVal
+car lvs = case lvs of
+            [List (x:xs)] -> return x
+            [DottedList (x:xs) _] -> return x
+            [singleVal] -> throwError $ TypeMismatch "pair" singleVal
+            wrongNum -> throwError $ NumArgs 1 wrongNum
+
+cdr :: [LispVal] -> ThrowsError LispVal
+cdr lvs = case lvs of
+            [List (x:xs)] -> return $ List xs
+            [DottedList (_:[]) y] -> return y
+            [DottedList (_:xs) y] -> return $ DottedList xs y
+            [singleVal] -> throwError $ TypeMismatch "pair" singleVal
+            wrongNum -> throwError $ NumArgs 1 wrongNum
+
+cons :: [LispVal] -> ThrowsError LispVal
+cons lvs = case lvs of
+             [val, List xs] -> return $ List (val:xs)
+             [val, DottedList xs y] -> return $ DottedList (val:xs) y
+             [List [], val2] -> return $ DottedList [List []] val2
+             [List val1, val2] -> return $ DottedList val1 val2
+             [val1, val2] -> return $ DottedList [val1] val2
+             badArgList -> throwError $ NumArgs 2 badArgList
+        
+
+boolBinOp :: (LispVal -> ThrowsError a) ->
+             (a -> a -> Bool) ->
+             [LispVal] ->
+             ThrowsError LispVal
+boolBinOp unpacker op params = case params of
+                                 leftM:rightM:[] -> do left <- unpacker leftM
+                                                       right <- unpacker rightM
+                                                       (return . Bool) $ op left right
+                                 wrongNum -> throwError $ NumArgs 2 wrongNum
+
+numBoolBinOp = boolBinOp unpackNum
+stringBoolBinOp = boolBinOp unpackString
+boolBoolBinOp = boolBinOp unpackBool
 
 numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
 numericBinOp op params = case params of
@@ -285,6 +376,16 @@ unpackNum :: LispVal -> ThrowsError Integer
 unpackNum x = case x of
                 Number n -> return n
                 notNum -> throwError $ TypeMismatch "number" notNum
+
+unpackString :: LispVal -> ThrowsError String
+unpackString x = case x of
+                   String n -> return n
+                   notString -> throwError $ TypeMismatch "string" notString
+
+unpackBool :: LispVal -> ThrowsError Bool
+unpackBool x = case x of
+                 Bool n -> return n
+                 notBool -> throwError $ TypeMismatch "bool" notBool
 
 unaryOp :: (LispVal -> ThrowsError LispVal) -> [LispVal] -> ThrowsError LispVal
 unaryOp f x = case x of
