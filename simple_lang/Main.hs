@@ -1,8 +1,8 @@
 module Main where
 
-import System.Environment
-import Control.Monad
-import qualified SLLibrary (readExpr, eval, trapError, extractValue)
+import           Control.Monad
+import qualified SLLibrary          (eval, extractValue, readExpr, trapError)
+import           System.Environment
 
 main :: IO ()
 main = do args <- getArgs

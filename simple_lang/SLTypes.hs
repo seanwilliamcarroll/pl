@@ -4,11 +4,11 @@ module SLTypes (LispVal(..),
                 trapError,
                 extractValue) where
 
-import Control.Monad.Except
-import Data.Array
-import Data.Complex
-import Data.Ratio
-import Text.ParserCombinators.Parsec (ParseError)
+import           Control.Monad.Except
+import           Data.Array
+import           Data.Complex
+import           Data.Ratio
+import           Text.ParserCombinators.Parsec (ParseError)
 
 data LispVal = Atom String
              | List [LispVal]
@@ -42,9 +42,9 @@ unwordsList :: [LispVal] -> String
 unwordsList = unwords . map showLispVal
 convertSpecialCharacters :: Char -> String
 convertSpecialCharacters c = case c of
-                               ' ' -> "space"
+                               ' '  -> "space"
                                '\n' -> "newline"
-                               _ -> [c]
+                               _    -> [c]
 
 data LispError = NumArgs Integer [LispVal]
                | TypeMismatch String LispVal
@@ -75,5 +75,5 @@ trapError action = catchError action (return . show)
 
 extractValue :: ThrowsError a -> a
 extractValue (Right val) = val
-extractValue _ = undefined
+extractValue _           = undefined
 

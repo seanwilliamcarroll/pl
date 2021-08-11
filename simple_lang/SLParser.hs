@@ -1,24 +1,24 @@
 {-# LANGUAGE ExistentialQuantification #-}
 module SLParser (readExpr, trapError, extractValue) where
 
-import SLTypes
+import           SLTypes
 
-import Control.Monad
-import Control.Monad.Except
-import Data.Array
-import Data.Bits
-import Data.Char (toLower)
-import Data.Complex
-import Data.Ratio
-import Numeric
-import Text.ParserCombinators.Parsec hiding (spaces)
+import           Control.Monad
+import           Control.Monad.Except
+import           Data.Array
+import           Data.Bits
+import           Data.Char                     (toLower)
+import           Data.Complex
+import           Data.Ratio
+import           Numeric
+import           Text.ParserCombinators.Parsec hiding (spaces)
 
 symbol :: Parser Char
 symbol = oneOf "!$%&|*+-/:<=?>@^_~"
 
 readExpr :: String -> ThrowsError LispVal
 readExpr input = case parse parseExpr "lisp" input of
-  Left err -> throwError $ Parser err
+  Left err  -> throwError $ Parser err
   Right val -> return val
 
 spaces :: Parser ()
@@ -50,10 +50,10 @@ escapedChars = do char '\\'
                   x <- oneOf "\\\"nrt"
                   return $ case x of
                     '\\' -> x
-                    '"' -> x
-                    'r' -> '\r'
-                    'n' -> '\n'
-                    't' -> '\t'
+                    '"'  -> x
+                    'r'  -> '\r'
+                    'n'  -> '\n'
+                    't'  -> '\t'
 
 parseAtom :: Parser LispVal
 parseAtom = do first <- letter <|> symbol
@@ -111,9 +111,9 @@ parseCharacter = do string "#\\"
                                       notFollowedBy alphaNum;
                                       return [x]}
                     return $ Character $ case value of
-                      "space" -> ' '
+                      "space"   -> ' '
                       "newline" -> '\n'
-                      _ -> head value
+                      _         -> head value
 
 parseFloat :: Parser LispVal
 parseFloat = do x <- many1 digit
@@ -135,7 +135,7 @@ parseComplex = do x <- try parseFloat <|> parseDecNoPrefix
                   char 'i'
                   let toDouble :: LispVal -> Double
                       toDouble (Number n) = fromIntegral n
-                      toDouble (Float f) = realToFrac f
+                      toDouble (Float f)  = realToFrac f
                   return $ Complex (toDouble x :+ toDouble y)
 
 parseAllListTypes :: Parser LispVal

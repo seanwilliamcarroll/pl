@@ -1,17 +1,17 @@
 module SLEvaluator (eval) where
 
-import SLTypes
-import SLParser
+import           SLParser
+import           SLTypes
 
-import Control.Monad
-import Control.Monad.Except
-import Data.Array
-import Data.Bits
-import Data.Char (toLower)
-import Data.Complex
-import Data.Ratio
-import Numeric
-import Text.ParserCombinators.Parsec hiding (spaces)
+import           Control.Monad
+import           Control.Monad.Except
+import           Data.Array
+import           Data.Bits
+import           Data.Char                     (toLower)
+import           Data.Complex
+import           Data.Ratio
+import           Numeric
+import           Text.ParserCombinators.Parsec hiding (spaces)
 
 eval :: LispVal -> ThrowsError LispVal
 eval x =
@@ -31,12 +31,12 @@ evalAtom x =
       do result <- eval pred
          case result of
            Bool False -> eval elseExpr
-           Bool True -> eval ifExpr
-           badPred -> throwError $ TypeMismatch "bool" badPred
+           Bool True  -> eval ifExpr
+           badPred    -> throwError $ TypeMismatch "bool" badPred
     form@(List ((Atom "cond") : exprs)) ->
       case exprs of
         [] -> throwError $ BadSpecialForm "No clauses for cond found" form
-        _ -> evalCond exprs
+        _  -> evalCond exprs
     form@(List ((Atom "case") : key : clauses)) ->
       case clauses of
         [] -> throwError $ BadSpecialForm "No clauses for case found" form
@@ -109,7 +109,7 @@ stringPrimitives = [("string?", unaryOp isString),
                     ("string-ci>?", stringLowerBoolBinOp (>)),
                     ("string-ci<?", stringLowerBoolBinOp (<)),
                     ("string-ci<=?", stringLowerBoolBinOp (<=)),
-                    ("string-ci>=?", stringLowerBoolBinOp (>=)),                    
+                    ("string-ci>=?", stringLowerBoolBinOp (>=)),
                     ("make-string", undefined),
                     ("string", undefined),
                     ("string-ref", undefined),
@@ -156,7 +156,7 @@ eqPrimitives = [("eqv?", eqv),
 eqPair :: (LispVal, LispVal) -> Bool
 eqPair (a1, b1) =
   case eqv [a1, b1] of
-    Left err -> False
+    Left err         -> False
     Right (Bool val) -> val
 
 eqv :: [LispVal] -> ThrowsError LispVal
@@ -183,27 +183,27 @@ equal = eqv -- FIXME?
 
 car :: [LispVal] -> ThrowsError LispVal
 car lvs = case lvs of
-            [List (x:xs)] -> return x
+            [List (x:xs)]         -> return x
             [DottedList (x:xs) _] -> return x
-            [singleVal] -> throwError $ TypeMismatch "pair" singleVal
-            wrongNum -> throwError $ NumArgs 1 wrongNum
+            [singleVal]           -> throwError $ TypeMismatch "pair" singleVal
+            wrongNum              -> throwError $ NumArgs 1 wrongNum
 
 cdr :: [LispVal] -> ThrowsError LispVal
 cdr lvs = case lvs of
-            [List (x:xs)] -> return $ List xs
-            [DottedList [_] y] -> return y
+            [List (x:xs)]         -> return $ List xs
+            [DottedList [_] y]    -> return y
             [DottedList (_:xs) y] -> return $ DottedList xs y
-            [singleVal] -> throwError $ TypeMismatch "pair" singleVal
-            wrongNum -> throwError $ NumArgs 1 wrongNum
+            [singleVal]           -> throwError $ TypeMismatch "pair" singleVal
+            wrongNum              -> throwError $ NumArgs 1 wrongNum
 
 cons :: [LispVal] -> ThrowsError LispVal
 cons lvs = case lvs of
-             [val, List xs] -> return $ List (val:xs)
+             [val, List xs]         -> return $ List (val:xs)
              [val, DottedList xs y] -> return $ DottedList (val:xs) y
-             [List [], val2] -> return $ DottedList [List []] val2
-             [List val1, val2] -> return $ DottedList val1 val2
-             [val1, val2] -> return $ DottedList [val1] val2
-             badArgList -> throwError $ NumArgs 2 badArgList
+             [List [], val2]        -> return $ DottedList [List []] val2
+             [List val1, val2]      -> return $ DottedList val1 val2
+             [val1, val2]           -> return $ DottedList [val1] val2
+             badArgList             -> throwError $ NumArgs 2 badArgList
 
 
 boolBinOp :: (LispVal -> ThrowsError a) ->
@@ -229,11 +229,11 @@ numericBinOp op params = case params of
 unpackNum :: LispVal -> ThrowsError Integer
 unpackNum x = case x of
                 Number n -> return n
-                notNum -> throwError $ TypeMismatch "number" notNum
+                notNum   -> throwError $ TypeMismatch "number" notNum
 
 unpackString :: LispVal -> ThrowsError String
 unpackString x = case x of
-                   String n -> return n
+                   String n  -> return n
                    notString -> throwError $ TypeMismatch "string" notString
 
 unpackLowerString :: LispVal -> ThrowsError String
@@ -243,36 +243,36 @@ unpackLowerString x = case x of
 
 unpackBool :: LispVal -> ThrowsError Bool
 unpackBool x = case x of
-                 Bool n -> return n
+                 Bool n  -> return n
                  notBool -> throwError $ TypeMismatch "bool" notBool
 
 unaryOp :: (LispVal -> ThrowsError LispVal) -> [LispVal] -> ThrowsError LispVal
 unaryOp f x = case x of
-                [val] -> f val
+                [val]   -> f val
                 badVals -> throwError $ NumArgs 1 badVals
 
 isSymbol, isString, isNumber, isBoolean, isList :: LispVal -> ThrowsError LispVal
 isSymbol x = case x of
                Atom _ -> (return . Bool) True
-               _ -> (return . Bool) False
+               _      -> (return . Bool) False
 isString x = case x of
                String _ -> (return . Bool) True
-               _ -> (return . Bool) False
+               _        -> (return . Bool) False
 isNumber x = case x of
                Number _ -> (return . Bool) True
-               _ -> (return . Bool) False
+               _        -> (return . Bool) False
 isBoolean x = case x of
                 Bool _ -> (return . Bool) True
-                _ -> (return . Bool) False
+                _      -> (return . Bool) False
 isList x = case x of
              List _ -> (return . Bool) True
-             _ -> (return . Bool) False
+             _      -> (return . Bool) False
 
 symbolToString, stringToSymbol :: LispVal -> ThrowsError LispVal
 symbolToString x = case x of
-                     Atom s -> (return . String) s
+                     Atom s    -> (return . String) s
                      notSymbol -> throwError $ TypeMismatch "symbol" notSymbol
 stringToSymbol x = case x of
-                     String s -> (return . Atom) s
+                     String s  -> (return . Atom) s
                      notString -> throwError $ TypeMismatch "string" notString
 
