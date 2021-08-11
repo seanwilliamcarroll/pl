@@ -247,22 +247,13 @@ parseVector = do string "#("
                  char ')'
                  return vec
 
-condAtom :: LispVal
-condAtom = Atom "cond"
-
-ifAtom :: LispVal
-ifAtom = Atom "if"
-
-quoteAtom :: LispVal
-quoteAtom = Atom "quote"
-
 eval :: LispVal -> ThrowsError LispVal
 eval x = case x of
            val@(String _) -> return val
            val@(Number _) -> return val
            val@(Bool _) -> return val
            val@(Character _) -> return val
-           List [quoteAtom, val] -> return val
+           List [Atom "quote", val] -> return val
            List [Atom "if", pred, ifExpr, elseExpr] -> do result <- eval pred
                                                           case result of
                                                             Bool False -> eval elseExpr
