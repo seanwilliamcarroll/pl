@@ -260,6 +260,20 @@ eval x = case x of
                                                             Bool True -> eval ifExpr
                                                             badPred -> throwError $ TypeMismatch
                                                                        "bool" badPred
+           form@(List ((Atom "cond"):exprs)) ->
+             case exprs of
+               [] -> throwError $
+                     BadSpecialForm "No clauses for cond found" form
+               expr:exprs' -> case expr of
+                                List [Atom "else", elseExpr] -> eval elseExpr
+                                List [pred, predExpr] -> eval $ List [Atom "if",
+                                                                      pred,
+                                                                      predExpr,
+                                                                      List ((Atom "cond"):
+                                                                       exprs')]
+                                badClause -> throwError $ BadSpecialForm
+                                             "Malformed clause in cond"
+                                             badClause
            List (Atom func : args) -> mapM eval args >>= apply func
            badForm -> throwError $ BadSpecialForm "Unrecognized special form" badForm
 
