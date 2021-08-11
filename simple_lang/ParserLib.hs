@@ -324,20 +324,20 @@ primitives = [("+", numericBinOp (+)),
 
 eqv :: [LispVal] -> ThrowsError LispVal
 eqv lvs = case lvs of
-            [(Bool a), (Bool b)] -> return $ Bool $ a == b
-            [(String a), (String b)] -> return $ Bool $ a == b
-            [(Number a), (Number b)] -> return $ Bool $ a == b
-            [(Character a), (Character b)] -> return $ Bool $ a == b
-            [(Atom a), (Atom b)] -> return $ Bool $ a == b
-            [(DottedList a b), (DottedList x y)] -> eqv [(List $ a ++ [b]), (List $ x ++ [y])]
-            [(List a), (List b)] -> return $ Bool $ (length a) == (length b) &&
+            [Bool a, Bool b] -> return $ Bool $ a == b
+            [String a, String b] -> return $ Bool $ a == b
+            [Number a, Number b] -> return $ Bool $ a == b
+            [Character a, Character b] -> return $ Bool $ a == b
+            [Atom a, Atom b] -> return $ Bool $ a == b
+            [DottedList a b, DottedList x y] -> eqv [List $ a ++ [b], List $ x ++ [y]]
+            [List a, List b] -> return $ Bool $ length a == length b &&
                                     let
                                       combList = zip a b
                                       eqPair (a1, b1) = case eqv [a1, b1] of
                                                           Left err -> False
                                                           Right (Bool val) -> val
                                     in
-                                      and $ map eqPair combList
+                                      all eqPair combList
             [_, _] -> return $ Bool False
             badArgList -> throwError $ NumArgs 2 badArgList
 
@@ -357,7 +357,7 @@ car lvs = case lvs of
 cdr :: [LispVal] -> ThrowsError LispVal
 cdr lvs = case lvs of
             [List (x:xs)] -> return $ List xs
-            [DottedList (_:[]) y] -> return y
+            [DottedList [_] y] -> return y
             [DottedList (_:xs) y] -> return $ DottedList xs y
             [singleVal] -> throwError $ TypeMismatch "pair" singleVal
             wrongNum -> throwError $ NumArgs 1 wrongNum
@@ -377,7 +377,7 @@ boolBinOp :: (LispVal -> ThrowsError a) ->
              [LispVal] ->
              ThrowsError LispVal
 boolBinOp unpacker op params = case params of
-                                 leftM:rightM:[] -> do left <- unpacker leftM
+                                 [leftM, rightM] -> do left <- unpacker leftM
                                                        right <- unpacker rightM
                                                        (return . Bool) $ op left right
                                  wrongNum -> throwError $ NumArgs 2 wrongNum
