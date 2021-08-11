@@ -248,29 +248,34 @@ parseVector = do string "#("
                  return vec
 
 eval :: LispVal -> ThrowsError LispVal
-eval x = case x of
-           val@(String _) -> return val
-           val@(Number _) -> return val
-           val@(Bool _) -> return val
-           val@(Character _) -> return val
-           List [Atom "quote", val] -> return val
-           List [Atom "if", pred, ifExpr, elseExpr] -> do result <- eval pred
-                                                          case result of
-                                                            Bool False -> eval elseExpr
-                                                            Bool True -> eval ifExpr
-                                                            badPred -> throwError $ TypeMismatch
-                                                                       "bool" badPred
-           form@(List ((Atom "cond"):exprs)) -> case exprs of
-                                                  [] -> throwError $
-                                                        BadSpecialForm
-                                                        "No clauses for cond found"
-                                                        form
-                                                  _ -> condEval exprs
-           List (Atom func : args) -> mapM eval args >>= apply func
-           badForm -> throwError $ BadSpecialForm "Unrecognized special form" badForm
+eval x =
+  case x of
+    val@(String _) -> return val
+    val@(Number _) -> return val
+    val@(Bool _) -> return val
+    val@(Character _) -> return val
+    val@(List ((Atom _) : _)) -> evalAtom val
+    badForm -> throwError $ BadSpecialForm "Unrecognized special form" badForm
 
-condEval :: [LispVal] -> ThrowsError LispVal
-condEval exprs =
+evalAtom :: LispVal -> ThrowsError LispVal
+evalAtom x =
+  case x of
+    List [Atom "quote", val] -> return val
+    List [Atom "if", pred, ifExpr, elseExpr] ->
+      do result <- eval pred
+         case result of
+           Bool False -> eval elseExpr
+           Bool True -> eval ifExpr
+           badPred -> throwError $ TypeMismatch "bool" badPred
+    form@(List ((Atom "cond") : exprs)) ->
+      case exprs of
+        [] -> throwError $ BadSpecialForm "No clauses for cond found" form
+        _ -> evalCond exprs
+    List (Atom func : args) -> mapM eval args >>= apply func
+    form -> throwError $ TypeMismatch "atom list" form
+
+evalCond :: [LispVal] -> ThrowsError LispVal
+evalCond exprs =
   case exprs of
     [] -> throwError $ BadSpecialForm "No valid clauses for cond found; Missing else?" $
           List exprs
@@ -279,7 +284,7 @@ condEval exprs =
                      List [pred, predExpr] -> do result <- eval pred
                                                  case result of
                                                    Bool True -> eval predExpr
-                                                   Bool False -> condEval exprs'
+                                                   Bool False -> evalCond exprs'
                                                    badPred -> throwError $
                                                               TypeMismatch
                                                               "bool"
@@ -376,7 +381,7 @@ cons lvs = case lvs of
              [List val1, val2] -> return $ DottedList val1 val2
              [val1, val2] -> return $ DottedList [val1] val2
              badArgList -> throwError $ NumArgs 2 badArgList
-        
+
 
 boolBinOp :: (LispVal -> ThrowsError a) ->
              (a -> a -> Bool) ->
