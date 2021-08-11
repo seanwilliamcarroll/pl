@@ -247,40 +247,55 @@ parseVector = do string "#("
                  char ')'
                  return vec
 
+condAtom :: LispVal
+condAtom = Atom "cond"
+
+ifAtom :: LispVal
+ifAtom = Atom "if"
+
+quoteAtom :: LispVal
+quoteAtom = Atom "quote"
+
 eval :: LispVal -> ThrowsError LispVal
 eval x = case x of
            val@(String _) -> return val
            val@(Number _) -> return val
            val@(Bool _) -> return val
            val@(Character _) -> return val
-           List [Atom "quote", val] -> return val
+           List [quoteAtom, val] -> return val
            List [Atom "if", pred, ifExpr, elseExpr] -> do result <- eval pred
                                                           case result of
                                                             Bool False -> eval elseExpr
                                                             Bool True -> eval ifExpr
                                                             badPred -> throwError $ TypeMismatch
                                                                        "bool" badPred
-           form@(List ((Atom "cond"):exprs)) ->
-             let condAtom = Atom "cond" in
-             case exprs of
-               [] -> throwError $
-                     BadSpecialForm "No clauses for cond found" form
-               expr:exprs' -> case expr of
-                                List [Atom "else", elseExpr] -> eval elseExpr
-                                List [pred, predExpr] -> do result <- eval pred
-                                                            case result of
-                                                              Bool True -> eval predExpr
-                                                              Bool False -> eval
-                                                                            (List (condAtom:exprs'))
-                                                              badPred -> throwError $
-                                                                         TypeMismatch
-                                                                         "bool"
-                                                                         badPred
-                                badClause -> throwError $ BadSpecialForm
-                                             "Malformed clause in cond"
-                                             badClause
+           form@(List ((Atom "cond"):exprs)) -> case exprs of
+                                                  [] -> throwError $
+                                                        BadSpecialForm
+                                                        "No clauses for cond found"
+                                                        form
+                                                  _ -> condEval exprs
            List (Atom func : args) -> mapM eval args >>= apply func
            badForm -> throwError $ BadSpecialForm "Unrecognized special form" badForm
+
+condEval :: [LispVal] -> ThrowsError LispVal
+condEval exprs =
+  case exprs of
+    [] -> throwError $ BadSpecialForm "No valid clauses for cond found; Missing else?" $
+          List exprs
+    expr:exprs' -> case expr of
+                     List [Atom "else", elseExpr] -> eval elseExpr
+                     List [pred, predExpr] -> do result <- eval pred
+                                                 case result of
+                                                   Bool True -> eval predExpr
+                                                   Bool False -> condEval exprs'
+                                                   badPred -> throwError $
+                                                              TypeMismatch
+                                                              "bool"
+                                                              badPred
+                     badClause -> throwError $ BadSpecialForm
+                                  "Malformed clause in cond"
+                                  badClause
 
 apply :: String -> [LispVal] -> ThrowsError LispVal
 apply func args = maybe (throwError $ NotFunction "Unrecognized primitive function args" func)
