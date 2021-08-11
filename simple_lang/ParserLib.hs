@@ -1,13 +1,14 @@
 {-# LANGUAGE ExistentialQuantification #-}
 module ParserLib (readExpr, eval, trapError, extractValue) where
 
-import Numeric
-import Data.Array
-import Data.Bits
-import Data.Ratio
-import Data.Complex
 import Control.Monad
 import Control.Monad.Except
+import Data.Array
+import Data.Bits
+import Data.Char (toLower)
+import Data.Complex
+import Data.Ratio
+import Numeric
 import Text.ParserCombinators.Parsec hiding (spaces)
 
 symbol :: Parser Char
@@ -299,19 +300,20 @@ evalCond exprs =
   case exprs of
     [] -> throwError $ BadSpecialForm "No valid clauses for cond found; Missing else?" $
           List exprs
-    expr:exprs' -> case expr of
-                     List [Atom "else", elseExpr] -> eval elseExpr
-                     List [pred, predExpr] -> do result <- eval pred
-                                                 case result of
-                                                   Bool True -> eval predExpr
-                                                   Bool False -> evalCond exprs'
-                                                   badPred -> throwError $
-                                                              TypeMismatch
-                                                              "bool"
-                                                              badPred
-                     badClause -> throwError $ BadSpecialForm
-                                  "Malformed clause in cond"
-                                  badClause
+    expr:exprs' ->
+      case expr of
+        List [Atom "else", elseExpr] -> eval elseExpr
+        List [pred, predExpr] -> do result <- eval pred
+                                    case result of
+                                      Bool True -> eval predExpr
+                                      Bool False -> evalCond exprs'
+                                      badPred -> throwError $
+                                                 TypeMismatch
+                                                 "bool"
+                                                 badPred
+        badClause -> throwError $ BadSpecialForm
+                     "Malformed clause in cond"
+                     badClause
 
 apply :: String -> [LispVal] -> ThrowsError LispVal
 apply func args = maybe (throwError $ NotFunction "Unrecognized primitive function args" func)
@@ -319,39 +321,72 @@ apply func args = maybe (throwError $ NotFunction "Unrecognized primitive functi
                   (lookup func primitives)
 
 primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
-primitives = [("+", numericBinOp (+)),
-              ("-", numericBinOp (-)),
-              ("*", numericBinOp (*)),
-              ("/", numericBinOp div),
-              ("mod", numericBinOp mod),
-              ("quotient", numericBinOp quot),
-              ("remainder", numericBinOp rem),
-              ("symbol?", unaryOp isSymbol),
-              ("string?", unaryOp isString),
-              ("number?", unaryOp isNumber),
-              ("boolean?", unaryOp isBoolean),
-              ("list?", unaryOp isList),
-              ("string->symbol", unaryOp stringToSymbol),
-              ("symbol->string", unaryOp symbolToString),
-              ("=", numBoolBinOp (==)),
-              ("<", numBoolBinOp (<)),
-              (">", numBoolBinOp (>)),
-              ("/=", numBoolBinOp (/=)),
-              (">=", numBoolBinOp (>=)),
-              ("<=", numBoolBinOp (<=)),
-              ("&&", boolBoolBinOp (&&)),
-              ("||", boolBoolBinOp (||)),
-              ("string=?", stringBoolBinOp (==)),
-              ("string>?", stringBoolBinOp (>)),
-              ("string<?", stringBoolBinOp (<)),
-              ("string<=?", stringBoolBinOp (<=)),
-              ("string>=?", stringBoolBinOp (>=)),
-              ("car", car),
-              ("cdr", cdr),
-              ("cons", cons),
-              ("eqv?", eqv),
-              ("eq?", eq),
-              ("equal?", equal)]
+primitives = symbolPrimitives ++
+             stringPrimitives ++
+             numPrimitives ++
+             boolPrimitives ++
+             listPrimitives ++
+             eqPrimitives
+
+symbolPrimitives :: [(String, [LispVal] -> ThrowsError LispVal)]
+symbolPrimitives = [("symbol?", unaryOp isSymbol),
+                    ("symbol->string", unaryOp symbolToString)]
+
+stringPrimitives :: [(String, [LispVal] -> ThrowsError LispVal)]
+stringPrimitives = [("string?", unaryOp isString),
+                    ("string->symbol", unaryOp stringToSymbol),
+                    ("string=?", stringBoolBinOp (==)),
+                    ("string>?", stringBoolBinOp (>)),
+                    ("string<?", stringBoolBinOp (<)),
+                    ("string<=?", stringBoolBinOp (<=)),
+                    ("string>=?", stringBoolBinOp (>=)),
+                    ("string-ci=?", stringLowerBoolBinOp (==)),
+                    ("string-ci>?", stringLowerBoolBinOp (>)),
+                    ("string-ci<?", stringLowerBoolBinOp (<)),
+                    ("string-ci<=?", stringLowerBoolBinOp (<=)),
+                    ("string-ci>=?", stringLowerBoolBinOp (>=)),                    
+                    ("make-string", undefined),
+                    ("string", undefined),
+                    ("string-ref", undefined),
+                    ("substring", undefined),
+                    ("string-append", undefined),
+                    ("string->list", undefined),
+                    ("string-set!", undefined),
+                    ("string-copy", undefined),
+                    ("string-fill!", undefined)]
+
+numPrimitives :: [(String, [LispVal] -> ThrowsError LispVal)]
+numPrimitives = [("number?", unaryOp isNumber),
+                 ("+", numericBinOp (+)),
+                 ("-", numericBinOp (-)),
+                 ("*", numericBinOp (*)),
+                 ("/", numericBinOp div),
+                 ("mod", numericBinOp mod),
+                 ("quotient", numericBinOp quot),
+                 ("remainder", numericBinOp rem),
+                 ("=", numBoolBinOp (==)),
+                 ("<", numBoolBinOp (<)),
+                 (">", numBoolBinOp (>)),
+                 ("/=", numBoolBinOp (/=)),
+                 (">=", numBoolBinOp (>=)),
+                 ("<=", numBoolBinOp (<=))]
+
+boolPrimitives :: [(String, [LispVal] -> ThrowsError LispVal)]
+boolPrimitives = [("boolean?", unaryOp isBoolean),
+                  ("&&", boolBoolBinOp (&&)),
+                  ("||", boolBoolBinOp (||))]
+
+listPrimitives :: [(String, [LispVal] -> ThrowsError LispVal)]
+listPrimitives = [("list?", unaryOp isList),
+                  ("car", car),
+                  ("cdr", cdr),
+                  ("cons", cons),
+                  ("list->string", undefined)]
+
+eqPrimitives :: [(String, [LispVal] -> ThrowsError LispVal)]
+eqPrimitives = [("eqv?", eqv),
+                ("eq?", eq),
+                ("equal?", equal)]
 
 eqPair :: (LispVal, LispVal) -> Bool
 eqPair (a1, b1) =
@@ -418,6 +453,7 @@ boolBinOp unpacker op params = case params of
 
 numBoolBinOp = boolBinOp unpackNum
 stringBoolBinOp = boolBinOp unpackString
+stringLowerBoolBinOp = boolBinOp unpackLowerString
 boolBoolBinOp = boolBinOp unpackBool
 
 numericBinOp :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsError LispVal
@@ -434,6 +470,11 @@ unpackString :: LispVal -> ThrowsError String
 unpackString x = case x of
                    String n -> return n
                    notString -> throwError $ TypeMismatch "string" notString
+
+unpackLowerString :: LispVal -> ThrowsError String
+unpackLowerString x = case x of
+                        String n -> return $ map toLower n
+                        notString -> throwError $ TypeMismatch "string" notString
 
 unpackBool :: LispVal -> ThrowsError Bool
 unpackBool x = case x of
