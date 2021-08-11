@@ -1,4 +1,4 @@
-module SLTypes (LispVal(..),
+module SchemeTypes (LispVal(..),
                 LispError(..),
                 ThrowsError,
                 trapError,

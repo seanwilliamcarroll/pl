@@ -1,7 +1,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
-module SLParser (readExpr, trapError, extractValue) where
+module SchemeParser (readExpr, trapError, extractValue) where
 
-import           SLTypes
+import           SchemeTypes
 
 import           Control.Monad
 import           Control.Monad.Except

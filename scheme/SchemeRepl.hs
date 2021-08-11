@@ -1,11 +1,11 @@
-module SLRepl (runRepl, evalAndPrint) where
+module SchemeRepl (runRepl, evalAndPrint) where
 
-import           SLEvaluator
-import           SLParser
-import           SLTypes
+import           SchemeEvaluator
+import           SchemeParser
+import           SchemeTypes
 
 import           Control.Monad
-import           System.IO     hiding (try)
+import           System.IO       hiding (try)
 
 
 flushStr :: String -> IO ()

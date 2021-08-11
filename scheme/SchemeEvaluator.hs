@@ -1,7 +1,7 @@
-module SLEvaluator (eval) where
+module SchemeEvaluator (eval) where
 
-import           SLParser
-import           SLTypes
+import           SchemeParser
+import           SchemeTypes
 
 import           Control.Monad
 import           Control.Monad.Except
