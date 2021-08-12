@@ -1,5 +1,6 @@
 module SchemeEvaluator (eval) where
 
+import           SchemeEnvironment
 import           SchemeParser
 import           SchemeTypes
 
@@ -13,40 +14,45 @@ import           Data.Ratio
 import           Numeric
 import           Text.ParserCombinators.Parsec hiding (spaces)
 
-eval :: LispVal -> ThrowsError LispVal
-eval x =
+eval :: Env -> LispVal -> IOThrowsError LispVal
+eval env x =
   case x of
     val@(String _) -> return val
     val@(Number _) -> return val
     val@(Bool _) -> return val
     val@(Character _) -> return val
-    val@(List ((Atom _) : _)) -> evalAtom val
+    Atom id -> getVar env id
+    val@(List ((Atom _) : _)) -> evalAtom env val
     badForm -> throwError $ BadSpecialForm "Unrecognized special form" badForm
 
-evalAtom :: LispVal -> ThrowsError LispVal
-evalAtom x =
+evalAtom :: Env -> LispVal -> IOThrowsError LispVal
+evalAtom env x =
   case x of
     List [Atom "quote", val] -> return val
     List [Atom "if", pred, ifExpr, elseExpr] ->
-      do result <- eval pred
+      do result <- eval env pred
          case result of
-           Bool False -> eval elseExpr
-           Bool True  -> eval ifExpr
+           Bool False -> eval env elseExpr
+           Bool True  -> eval env ifExpr
            badPred    -> throwError $ TypeMismatch "bool" badPred
     form@(List ((Atom "cond") : exprs)) ->
       case exprs of
         [] -> throwError $ BadSpecialForm "No clauses for cond found" form
-        _  -> evalCond exprs
+        _  -> evalCond env exprs
     form@(List ((Atom "case") : key : clauses)) ->
       case clauses of
         [] -> throwError $ BadSpecialForm "No clauses for case found" form
-        _ -> do result <- eval key
-                evalCase result clauses
-    List (Atom func : args) -> mapM eval args >>= apply func
+        _ -> do result <- eval env key
+                evalCase env result clauses
+    List [(Atom "define"),  (Atom var), form] ->
+      eval env form >>= defineVar env var
+    List [(Atom "set!"), (Atom var), form] ->
+      eval env form >>= setVar env var
+    List (Atom func : args) -> mapM (eval env) args >>= liftThrows . apply func
     form -> throwError $ TypeMismatch "atom list" form
 
-evalCase :: LispVal -> [LispVal] -> ThrowsError LispVal
-evalCase key clauses =
+evalCase :: Env -> LispVal -> [LispVal] -> IOThrowsError LispVal
+evalCase env key clauses =
   case clauses of
     [] -> throwError $ BadSpecialForm "No valid clauses for case found; Missing else?" $
           List clauses
@@ -55,23 +61,23 @@ evalCase key clauses =
         clauseResult = any (\x -> eqPair (key, x)) datums
       in
         if clauseResult
-        then eval pred
-        else evalCase key clauses'
-    (List ((Atom "else"):[pred])):clauses' -> eval pred
+        then eval env pred
+        else evalCase env key clauses'
+    (List ((Atom "else"):[pred])):clauses' -> eval env pred
     badForm -> throwError $ BadSpecialForm "Invalid clause for case found" $ List badForm
 
-evalCond :: [LispVal] -> ThrowsError LispVal
-evalCond exprs =
+evalCond :: Env -> [LispVal] -> IOThrowsError LispVal
+evalCond env exprs =
   case exprs of
     [] -> throwError $ BadSpecialForm "No valid clauses for cond found; Missing else?" $
           List exprs
     expr:exprs' ->
       case expr of
-        List [Atom "else", elseExpr] -> eval elseExpr
-        List [pred, predExpr] -> do result <- eval pred
+        List [Atom "else", elseExpr] -> eval env elseExpr
+        List [pred, predExpr] -> do result <- eval env pred
                                     case result of
-                                      Bool True -> eval predExpr
-                                      Bool False -> evalCond exprs'
+                                      Bool True -> eval env predExpr
+                                      Bool False -> evalCond env exprs'
                                       badPred -> throwError $
                                                  TypeMismatch
                                                  "bool"

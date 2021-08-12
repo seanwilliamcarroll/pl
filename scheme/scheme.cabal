@@ -23,7 +23,8 @@ library
       SchemeTypes,
       SchemeParser,
       SchemeEvaluator,
-      SchemeRepl
+      SchemeRepl,
+      SchemeEnvironment
   -- other-extensions:
   build-depends:
       base >=4.13 && <4.14,
@@ -40,7 +41,8 @@ executable scheme
       SchemeTypes,
       SchemeParser,
       SchemeEvaluator,
-      SchemeRepl
+      SchemeRepl,
+      SchemeEnvironment
   -- other-extensions:
   build-depends:
       base >=4.13 && <4.14,

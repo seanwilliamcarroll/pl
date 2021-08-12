@@ -1,12 +1,18 @@
 module SchemeTypes (LispVal(..),
-                LispError(..),
-                ThrowsError,
-                trapError,
-                extractValue) where
+                    LispError(..),
+                    ThrowsError,
+                    trapError,
+                    extractValue,
+                    Env(..),
+                    IOThrowsError(..),
+                    nullEnv,
+                    liftThrows,
+                    runIOThrows) where
 
 import           Control.Monad.Except
 import           Data.Array
 import           Data.Complex
+import           Data.IORef
 import           Data.Ratio
 import           Text.ParserCombinators.Parsec (ParseError)
 
@@ -76,4 +82,20 @@ trapError action = catchError action (return . show)
 extractValue :: ThrowsError a -> a
 extractValue (Right val) = val
 extractValue _           = undefined
+
+type Env = IORef [(String, IORef LispVal)]
+
+nullEnv :: IO Env
+nullEnv = newIORef []
+
+type IOThrowsError = ExceptT LispError IO
+
+liftThrows :: ThrowsError a -> IOThrowsError a
+liftThrows x =
+  case x of
+    Left err  -> throwError err
+    Right val -> return val
+
+runIOThrows :: IOThrowsError String -> IO String
+runIOThrows action = runExceptT (trapError action) >>= return . extractValue
 
