@@ -1,4 +1,4 @@
-module SchemeEvaluator (eval) where
+module SchemeEvaluator (eval, primitiveBindings) where
 
 import           SchemeEnvironment
 import           SchemeParser
@@ -44,11 +44,24 @@ evalAtom env x =
         [] -> throwError $ BadSpecialForm "No clauses for case found" form
         _ -> do result <- eval env key
                 evalCase env result clauses
-    List [(Atom "define"),  (Atom var), form] ->
+    List [Atom "define",  Atom var, form] ->
       eval env form >>= defineVar env var
-    List [(Atom "set!"), (Atom var), form] ->
+    List ((Atom "define"):(List ((Atom var) : params) : body)) ->
+      makeNormalFunc env params body >>= defineVar env var
+    List ((Atom "define"):(DottedList ((Atom var) : params) varargs) : body) ->
+      makeVarargs varargs env params body >>= defineVar env var
+    List ((Atom "lambda") : (List params) : body) ->
+      makeNormalFunc env params body
+    List ((Atom "lambda") : (DottedList params varargs) : body) ->
+      makeVarargs varargs env params body
+    List ((Atom "lambda") : (varargs@(Atom _)) : body) ->
+      makeVarargs varargs env [] body
+    List [Atom "set!", Atom var, form] ->
       eval env form >>= setVar env var
-    List (Atom func : args) -> mapM (eval env) args >>= liftThrows . apply func
+    List (function : args) -> do
+      func <- eval env function
+      argVals <- mapM (eval env) args
+      apply func argVals
     form -> throwError $ TypeMismatch "atom list" form
 
 evalCase :: Env -> LispVal -> [LispVal] -> IOThrowsError LispVal
@@ -86,10 +99,33 @@ evalCond env exprs =
                      "Malformed clause in cond"
                      badClause
 
-apply :: String -> [LispVal] -> ThrowsError LispVal
-apply func args = maybe (throwError $ NotFunction "Unrecognized primitive function args" func)
-                  ($ args)
-                  (lookup func primitives)
+makeFunc varargs env params body =
+  return $ Func (map showLispVal params) varargs body env
+
+makeNormalFunc = makeFunc Nothing
+makeVarargs = makeFunc . Just . showLispVal
+
+apply :: LispVal -> [LispVal] -> IOThrowsError LispVal
+apply function args =
+  case function of
+    PrimitiveFunc func -> liftThrows $ func args
+    Func params varargs body closure ->
+      if num params /= num args && varargs == Nothing
+      then throwError $ NumArgs (num params) args
+      else (liftIO $ bindVars closure $ zip params args) >>=
+           bindVarArgs varargs >>=
+           evalBody
+      where remainingArgs = drop (length params) args
+            num = toInteger . length
+            evalBody env = liftM last $ mapM (eval env) body
+            bindVarArgs arg env =
+              case arg of
+                Just argName -> liftIO $ bindVars env [(argName, List $ remainingArgs)]
+                Nothing -> return env
+
+primitiveBindings :: IO Env
+primitiveBindings = nullEnv >>= (flip bindVars $ map makePrimitiveFunc primitives)
+  where makePrimitiveFunc (var, func) = (var, PrimitiveFunc func)
 
 primitives :: [(String, [LispVal] -> ThrowsError LispVal)]
 primitives = symbolPrimitives ++

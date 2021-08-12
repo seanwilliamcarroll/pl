@@ -1,4 +1,5 @@
 module SchemeTypes (LispVal(..),
+                    showLispVal,
                     LispError(..),
                     ThrowsError,
                     trapError,
@@ -27,6 +28,11 @@ data LispVal = Atom String
              | Ratio Rational
              | Complex (Complex Double)
              | Vector (Array Int LispVal)
+             | PrimitiveFunc ([LispVal] -> ThrowsError LispVal)
+             | Func {params  :: [String],
+                     vararg  :: (Maybe String),
+                     body    :: [LispVal],
+                     closure :: Env}
 
 instance Show LispVal where show = showLispVal
 
@@ -44,6 +50,16 @@ showLispVal lv = case lv of
                    Ratio r -> show r
                    Complex c -> show c
                    Vector v -> show v
+                   PrimitiveFunc _ -> "<primitive>" -- FIXME
+                   Func {params = args,
+                         vararg = varargs,
+                         body = body,
+                         closure = env} ->
+                     "(lambda (" ++ unwords (map show args) ++
+                     (case varargs of
+                        Nothing  -> ""
+                        Just arg -> " . " ++ arg) ++
+                     ") ...)"
 unwordsList :: [LispVal] -> String
 unwordsList = unwords . map showLispVal
 convertSpecialCharacters :: Char -> String
