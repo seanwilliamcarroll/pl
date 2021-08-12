@@ -6,6 +6,12 @@ To run the interpreter as a repl, run
 
 ```cabal run scheme```
 
+Enter
+
+```quit```
+
+to quit the repl.
+
 
 To run the interpreter on an an input string, run
 
