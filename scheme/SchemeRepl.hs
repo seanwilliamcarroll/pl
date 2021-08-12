@@ -17,8 +17,8 @@ readPrompt prompt = flushStr prompt >> getLine
 
 evalString :: Env -> String -> IO String
 evalString env expr = runIOThrows $
-                      liftM show $
-                      (liftThrows $ readExpr expr) >>=
+                      fmap show $
+                      liftThrows (readExpr expr) >>=
                       eval env
 
 evalAndPrint :: Env -> String -> IO ()
@@ -35,5 +35,5 @@ runOne :: String -> IO ()
 runOne expr = primitiveBindings >>= flip evalAndPrint expr
 
 runRepl :: IO ()
-runRepl = primitiveBindings >>= until_ (== "quit") (readPrompt "Lisp>>> ") . evalAndPrint
+runRepl = primitiveBindings >>= until_ (== ":q") (readPrompt "Lisp>>> ") . evalAndPrint
 

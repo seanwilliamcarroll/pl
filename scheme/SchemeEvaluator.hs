@@ -10,6 +10,7 @@ import           Data.Array
 import           Data.Bits
 import           Data.Char                     (toLower)
 import           Data.Complex
+import           Data.Maybe
 import           Data.Ratio
 import           Numeric
 import           Text.ParserCombinators.Parsec hiding (spaces)
@@ -54,7 +55,7 @@ evalAtom env x =
       makeNormalFunc env params body
     List ((Atom "lambda") : (DottedList params varargs) : body) ->
       makeVarargs varargs env params body
-    List ((Atom "lambda") : (varargs@(Atom _)) : body) ->
+    List ((Atom "lambda") : varargs@(Atom _) : body) ->
       makeVarargs varargs env [] body
     List [Atom "set!", Atom var, form] ->
       eval env form >>= setVar env var
@@ -110,21 +111,22 @@ apply function args =
   case function of
     PrimitiveFunc func -> liftThrows $ func args
     Func params varargs body closure ->
-      if num params /= num args && varargs == Nothing
+      if num params /= num args && isNothing varargs
       then throwError $ NumArgs (num params) args
-      else (liftIO $ bindVars closure $ zip params args) >>=
+      else liftIO (bindVars closure $ zip params args) >>=
            bindVarArgs varargs >>=
            evalBody
       where remainingArgs = drop (length params) args
             num = toInteger . length
-            evalBody env = liftM last $ mapM (eval env) body
+            evalBody env = last <$> mapM (eval env) body
             bindVarArgs arg env =
               case arg of
-                Just argName -> liftIO $ bindVars env [(argName, List $ remainingArgs)]
+                Just argName -> liftIO $ bindVars env [(argName, List remainingArgs)]
                 Nothing -> return env
+    form -> throwError $ TypeMismatch "function" form
 
 primitiveBindings :: IO Env
-primitiveBindings = nullEnv >>= (flip bindVars $ map makePrimitiveFunc primitives)
+primitiveBindings = nullEnv >>= flip bindVars (map makePrimitiveFunc primitives)
   where makePrimitiveFunc (var, func) = (var, PrimitiveFunc func)
 
 primitives :: [(String, [LispVal] -> ThrowsError LispVal)]

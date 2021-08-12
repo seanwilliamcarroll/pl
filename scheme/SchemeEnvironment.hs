@@ -4,9 +4,10 @@ import           SchemeTypes
 
 import           Control.Monad.Except
 import           Data.IORef
+import           Data.Maybe
 
 isBound :: Env -> String -> IO Bool
-isBound envRef var = readIORef envRef >>= return . maybe False (const True) . lookup var
+isBound envRef var = readIORef envRef >>= return . isJust . lookup var
 
 getVar :: Env -> String -> IOThrowsError LispVal
 getVar envRef var = do env <- liftIO $ readIORef envRef
@@ -16,7 +17,7 @@ getVar envRef var = do env <- liftIO $ readIORef envRef
 setVar :: Env -> String -> LispVal -> IOThrowsError LispVal
 setVar envRef var value = do env <- liftIO $ readIORef envRef
                              maybe (throwError $ UnboundVar "Setting an unbound variable" var)
-                               (liftIO . (flip writeIORef value)) (lookup var env)
+                               (liftIO . flip writeIORef value) (lookup var env)
                              return value
 
 defineVar :: Env -> String -> LispVal -> IOThrowsError LispVal
@@ -35,6 +36,6 @@ bindVars :: Env -> [(String, LispVal)] -> IO Env
 bindVars envRef bindings = readIORef envRef >>=
                            extendEnv bindings >>=
                            newIORef where
-  extendEnv bindings env = liftM (++ env) (mapM addBinding bindings)
+  extendEnv bindings env = fmap (++ env) (mapM addBinding bindings)
   addBinding (var, value) = do ref <- newIORef value
                                return (var, ref)

@@ -8,7 +8,7 @@ To run the interpreter as a repl, run
 
 Enter
 
-```quit```
+```:q```
 
 to quit the repl.
 

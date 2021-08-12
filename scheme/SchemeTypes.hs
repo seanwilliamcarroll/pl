@@ -30,7 +30,7 @@ data LispVal = Atom String
              | Vector (Array Int LispVal)
              | PrimitiveFunc ([LispVal] -> ThrowsError LispVal)
              | Func {params  :: [String],
-                     vararg  :: (Maybe String),
+                     vararg  :: Maybe String,
                      body    :: [LispVal],
                      closure :: Env}
 
