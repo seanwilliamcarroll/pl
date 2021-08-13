@@ -15,9 +15,12 @@ import           Text.ParserCombinators.Parsec hiding (spaces)
 
 
 data Ch1Val = Number Integer
-            | List [Ch1Val]
-            | Atom String
-            | ValueOp String
+            | Variable String
+            | Application String [Ch1Val]
+            | FunDef {funName :: String,
+                      formals :: [String],
+                      body    :: Ch1Val}
+
 
 instance Show Ch1Val where show = showCh1Val
 
@@ -25,8 +28,18 @@ showCh1Val :: Ch1Val -> String
 showCh1Val cv =
   case cv of
     Number val    -> show val
-    ValueOp valop -> valop
-    _             -> undefined
+    Variable var -> "Variable: " ++ show var
+    Application funcName vals ->
+      "Application: " ++ funcName ++ " applied to args: [" ++
+      unwordsList vals ++ "]"
+    FunDef {funName = funName,
+            formals = formals,
+            body = body} ->
+      "Function: " ++ funName ++ " with args: [" ++ unwords formals ++ "]"
+
+unwordsList :: [Ch1Val] -> String
+unwordsList = unwords . map showCh1Val
+
 
 data Ch1ValError = NumArgs Integer [Ch1Val]
                  | TypeMismatch String Ch1Val
@@ -41,7 +54,8 @@ instance Show Ch1ValError where show = showCh1ValError
 showCh1ValError :: Ch1ValError -> String
 showCh1ValError x =
   case x of
-    _ -> undefined
+    Parser err -> "Parser error: " ++ show err
+    _          -> undefined
 
 type ThrowsError = Either Ch1ValError
 

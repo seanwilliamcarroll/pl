@@ -34,5 +34,5 @@ runOne :: String -> IO ()
 runOne expr = nullEnv >>= flip evalAndPrint expr
 
 runRepl :: IO ()
-runRepl = nullEnv >>= until_ (== ":q") (readPrompt "-> ") . evalAndPrint
+runRepl = nullEnv >>= until_ (== "quit") (readPrompt "-> ") . evalAndPrint
 

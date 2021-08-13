@@ -5,6 +5,9 @@ import           Ch1Types
 import           Control.Monad.Except
 import           Text.ParserCombinators.Parsec hiding (spaces)
 
+spaces :: Parser ()
+spaces = skipMany1 space
+
 readExpr :: String -> ThrowsError Ch1Val
 readExpr input = case parse parseExpr "ch1lang" input of
   Left err  -> throwError $ Parser err
@@ -12,30 +15,53 @@ readExpr input = case parse parseExpr "ch1lang" input of
 
 parseExpr :: Parser Ch1Val
 parseExpr = try parseNumber
-            <|> try parseList
-            <|> try parseAtom
+            <|> try parseAppOrFunDef
+            <|> try parseVariable
 
 parseNumber :: Parser Ch1Val
 parseNumber = Number . read <$> many1 digit
 
-parseList :: Parser Ch1Val
-parseList = undefined
+parseAppOrFunDef :: Parser Ch1Val
+parseAppOrFunDef =
+  do char '('
+     val <- try parseFunDef <|> try parseApplication
+     char ')'
+     return val
 
-parseValueOp :: Parser Ch1Val
-parseValueOp = try parseSymbolOp <|> try parsePrintOp
+parseApplication :: Parser Ch1Val
+parseApplication =
+  do function <- parseName
+     option () spaces -- Probably better way to do this?
+     exprs <- option [] (sepBy parseExpr spaces)
+     return $ Application function exprs
 
-parseSymbolOp :: Parser Ch1Val
-parseSymbolOp = do valop <- oneOf "+-*/=<>"
-                   return $ ValueOp [valop]
+parseFunDef :: Parser Ch1Val
+parseFunDef =
+  do string "define"
+     spaces
+     function <- parseName
+     spaces
+     arglist <- parseArgList
+     spaces
+     expression <- parseExpr
+     return $ FunDef function arglist expression
 
-parsePrintOp :: Parser Ch1Val
-parsePrintOp = do
-  let printStr = "print"
-  string printStr
-  return $ ValueOp printStr
+parseArgList :: Parser [String]
+parseArgList = do char '('
+                  args <- sepBy parseName spaces
+                  char ')'
+                  return args
 
-parseAtom :: Parser Ch1Val
-parseAtom = undefined
+parseVariable :: Parser Ch1Val
+parseVariable =
+  do name <- parseName
+     return $ Variable name
+
+parseName :: Parser String
+parseName = many1 (alphaNum <|> oneOf "+-*/=<>")
+
+
+
 
 
 
