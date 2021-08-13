@@ -62,7 +62,7 @@ comment -> Begin with ; and continues until end of the line
 
 ```
 
-Note that a function cannot be one of the keywords:
+Note that a user-defined function cannot be one of the keywords:
 ```
 define, if, while, begin, set, <any value-op>
 ```
