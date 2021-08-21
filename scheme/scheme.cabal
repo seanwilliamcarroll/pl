@@ -27,7 +27,7 @@ library
       SchemeEnvironment
   -- other-extensions:
   build-depends:
-      base >=4.13 && <4.14,
+      base >=4.13 && <4.15,
       parsec,
       array,
       mtl
@@ -45,7 +45,7 @@ executable scheme
       SchemeEnvironment
   -- other-extensions:
   build-depends:
-      base >=4.13 && <4.14,
+      base >=4.13 && <4.15,
       parsec,
       array,
       mtl
